@@ -1,0 +1,16 @@
+name: 'streamguard'
+version: '1.0.0'
+config-version: 2
+
+profile: 'streamguard'
+
+model-paths: ["models"]
+
+models:
+  streamguard:
+    staging:
+      +materialized: view
+      +schema: analytics
+    marts:
+      +materialized: table
+      +schema: analytics

@@ -1,0 +1,86 @@
+version: "3.8"
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: streamguard-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+
+  postgres:
+    image: postgres:16
+    container_name: streamguard-postgres
+    environment:
+      POSTGRES_DB: streamguard
+      POSTGRES_USER: streamguard
+      POSTGRES_PASSWORD: streamguard
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streamguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  airflow:
+    build:
+      context: ./airflow
+    container_name: streamguard-airflow
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      PG_DSN: "dbname=streamguard user=streamguard password=streamguard host=postgres port=5432"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./stream_processor:/opt/airflow/stream_processor
+      - models:/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      bash -c "airflow db init &&
+               (airflow users create --username admin --password admin --firstname Kenil --lastname Savani --role Admin --email admin@example.com || true) &&
+               airflow standalone"
+
+  dbt:
+    build:
+      context: ./dbt_project
+    container_name: streamguard-dbt
+    volumes:
+      - ./dbt_project:/usr/app/dbt_project
+    working_dir: /usr/app/dbt_project
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: streamguard-api
+    environment:
+      MODEL_PATH: /models/isolation_forest.joblib
+    ports:
+      - "8000:8000"
+    volumes:
+      - models:/models
+
+volumes:
+  pg_data:
+  models:

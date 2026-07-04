@@ -1,0 +1,12 @@
+streamguard:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: postgres
+      user: streamguard
+      password: streamguard
+      port: 5432
+      dbname: streamguard
+      schema: analytics
+      threads: 4
