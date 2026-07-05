@@ -10,7 +10,7 @@ models:
   streamguard:
     staging:
       +materialized: view
-      +schema: analytics
+      
     marts:
       +materialized: table
-      +schema: analytics
+      

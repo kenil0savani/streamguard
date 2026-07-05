@@ -38,23 +38,27 @@ services:
     build:
       context: ./airflow
     container_name: streamguard-airflow
+    user: "0:0"
     environment:
       AIRFLOW__CORE__EXECUTOR: SequentialExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__WORKERS: "1"
+      AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: "300"
       PG_DSN: "dbname=streamguard user=streamguard password=streamguard host=postgres port=5432"
     ports:
       - "8080:8080"
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./stream_processor:/opt/airflow/stream_processor
-      - models:/models
+      - ./models:/models
     depends_on:
       postgres:
         condition: service_healthy
     command: >
       bash -c "airflow db init &&
                (airflow users create --username admin --password admin --firstname Kenil --lastname Savani --role Admin --email admin@example.com || true) &&
-               airflow standalone"
+               (airflow scheduler &) &&
+               airflow webserver"
 
   dbt:
     build:
@@ -79,8 +83,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - models:/models
+      - ./models:/models
 
 volumes:
   pg_data:
-  models:
+  
