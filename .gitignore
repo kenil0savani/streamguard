@@ -9,3 +9,7 @@ dbt_project/dbt_packages/
 .venv/
 venv/
 .DS_Store
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/.terraform.lock.hcl

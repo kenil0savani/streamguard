@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamguard-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamguard-api
+  template:
+    metadata:
+      labels:
+        app: streamguard-api
+    spec:
+      containers:
+        - name: streamguard-api
+          image: streamguardacr3rhe2d.azurecr.io/streamguard-api:v4
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamguard-api-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: streamguard-api
+  ports:
+    - port: 80
+      targetPort: 8000
