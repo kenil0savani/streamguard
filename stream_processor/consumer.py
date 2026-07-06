@@ -8,15 +8,15 @@ import json
 import os
 import time
 
-from dotenv import load_dotenv
-
-load_dotenv()
 
 import psycopg2
+from dotenv import load_dotenv
 from kafka import KafkaConsumer
 
 from anomaly_model import AnomalyModel
 from feature_engineering import RollingFeatureStore
+
+load_dotenv()
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOST_MODEL_PATH = os.path.join(PROJECT_ROOT, "models", "isolation_forest.joblib")
