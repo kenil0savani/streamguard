@@ -3,7 +3,7 @@
 End-to-end data platform that ingests streaming IoT sensor data, scores it for
 anomalies in real time, orchestrates periodic retraining and data-quality
 checks, models the results into analytics-ready tables, and serves scores
-over a REST API — with monitoring, tests, and CI baked in.
+over a REST API such as with monitoring, tests, and CI baked in.
 
 This is a production-shaped extension of self-supervised anomaly detection
 research on streaming IoT data (originally explored in an M.Sc. thesis at
@@ -100,15 +100,15 @@ curl http://localhost:8000/metrics
 
 - The producer injects synthetic anomalies (temperature spikes / vibration
   surges) roughly 3% of the time. Ground truth is stored in
-  `raw_events.is_synthetic_anomaly` for offline evaluation only — the model
+  `raw_events.is_synthetic_anomaly` for offline evaluation only and the model
   never sees this label.
 - After a few minutes of streaming, query `analytics.agg_hourly_anomaly_rate`
   (built by dbt) to see anomaly rate per sensor per hour and compare it
-  against the injected 3% rate — this is your model-quality sanity check,
+  against the injected 3% rate, this is your model-quality sanity check,
   mirroring how a real anomaly-detection system is monitored in production.
 - The Airflow DAG retrains the IsolationForest hourly on the last 5,000
   events and fails the run (visible in the Airflow UI) if data freshness or
-  null checks fail — this is the "kept it stable as the data changed"
+  null checks fail. This is the "kept it stable as the data changed"
   behaviour from the original thesis work, now automated instead of manual.
 
 ## Repository layout
