@@ -1,19 +1,14 @@
 version: 2
 
-sources:
-  - name: public
-    schema: public
-    tables:
-      - name: raw_events
-      - name: scored_events
-
 models:
   - name: stg_raw_events
-    description: "Cleaned view over raw IoT sensor readings written by the stream consumer."
+    description: Cleaned IoT telemetry events with ground truth labels.
     columns:
-      - name: id
-        tests: [not_null, unique]
+      - name: raw_event_id
+        tests: [unique, not_null]
       - name: sensor_id
+        tests: [not_null]
+      - name: event_time
         tests: [not_null]
       - name: temperature
         tests: [not_null]
@@ -21,11 +16,16 @@ models:
         tests: [not_null]
 
   - name: stg_scored_events
-    description: "Cleaned view over anomaly scores written by the stream consumer."
+    description: Anomaly scores produced by the streaming IsolationForest consumer.
     columns:
-      - name: id
-        tests: [not_null, unique]
+      - name: scored_event_id
+        tests: [unique, not_null]
+      - name: sensor_id
+        tests: [not_null]
+      - name: event_time
+        tests: [not_null]
       - name: anomaly_score
         tests: [not_null]
       - name: is_anomaly
         tests: [not_null]
+        
