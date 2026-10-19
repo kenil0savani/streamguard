@@ -4,9 +4,26 @@ with scored as (
 
 ),
 
-raw as (
+raw_ranked as (
 
-    select * from {{ ref('stg_raw_events') }}
+    select
+        raw_event_id,
+        sensor_id,
+        event_time,
+        temperature,
+        vibration,
+        is_synthetic_anomaly,
+        row_number() over (
+            partition by sensor_id, event_time
+            order by ingested_at desc, raw_event_id desc
+        ) as row_num
+    from {{ ref('stg_raw_events') }}
+
+),
+
+raw_unique as (
+
+    select * from raw_ranked where row_num = 1
 
 ),
 
@@ -30,7 +47,7 @@ joined as (
         end as detection_outcome,
         s.scored_at
     from scored s
-    left join raw r
+    left join raw_unique r
         on s.sensor_id = r.sensor_id
        and s.event_time = r.event_time
 
