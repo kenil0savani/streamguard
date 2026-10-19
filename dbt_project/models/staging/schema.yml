@@ -1,0 +1,31 @@
+version: 2
+
+sources:
+  - name: public
+    schema: public
+    tables:
+      - name: raw_events
+      - name: scored_events
+
+models:
+  - name: stg_raw_events
+    description: "Cleaned view over raw IoT sensor readings written by the stream consumer."
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: sensor_id
+        tests: [not_null]
+      - name: temperature
+        tests: [not_null]
+      - name: vibration
+        tests: [not_null]
+
+  - name: stg_scored_events
+    description: "Cleaned view over anomaly scores written by the stream consumer."
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: anomaly_score
+        tests: [not_null]
+      - name: is_anomaly
+        tests: [not_null]

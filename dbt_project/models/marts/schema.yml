@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: fct_anomaly_events
+    description: "Event-level fact table joining raw sensor readings with anomaly scores."
+    columns:
+      - name: sensor_id
+        tests: [not_null]
+      - name: anomaly_score
+        tests: [not_null]
+
+  - name: agg_hourly_anomaly_rate
+    description: "Hourly anomaly rate per sensor — used for BI dashboards and alerting thresholds."
+    columns:
+      - name: anomaly_rate
+        tests: [not_null]

@@ -1,15 +1,15 @@
 __pycache__/
 *.pyc
 .env
-models/
+/models/
 *.joblib
 dbt_project/target/
 dbt_project/logs/
 dbt_project/dbt_packages/
+dbt_project/.user.yml
 .venv/
 venv/
 .DS_Store
 infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.backup
-infra/.terraform.lock.hcl

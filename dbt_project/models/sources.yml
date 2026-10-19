@@ -1,0 +1,31 @@
+version: 2
+
+sources:
+  - name: streamguard_raw
+    schema: public
+    description: Tables written directly by the Kafka stream consumer.
+    tables:
+      - name: raw_events
+        description: Every IoT telemetry event received from the Kafka topic.
+        loaded_at_field: inserted_at
+        freshness:
+          warn_after: {count: 1, period: hour}
+          error_after: {count: 6, period: hour}
+        columns:
+          - name: id
+            tests: [unique, not_null]
+          - name: sensor_id
+            tests: [not_null]
+          - name: event_time
+            tests: [not_null]
+
+      - name: scored_events
+        description: Anomaly scores produced by the IsolationForest consumer.
+        loaded_at_field: inserted_at
+        columns:
+          - name: id
+            tests: [unique, not_null]
+          - name: sensor_id
+            tests: [not_null]
+          - name: anomaly_score
+            tests: [not_null]
