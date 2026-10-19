@@ -2,15 +2,28 @@ version: 2
 
 models:
   - name: fct_anomaly_events
-    description: "Event-level fact table joining raw sensor readings with anomaly scores."
+    description: One row per scored event, joined to ground truth and labelled as a detection outcome.
     columns:
+      - name: scored_event_id
+        tests: [unique, not_null]
       - name: sensor_id
+        tests: [not_null]
+      - name: event_time
         tests: [not_null]
       - name: anomaly_score
         tests: [not_null]
+      - name: detection_outcome
+        tests:
+          - accepted_values:
+              values: ['true_positive', 'false_positive', 'false_negative', 'true_negative']
 
   - name: agg_hourly_anomaly_rate
-    description: "Hourly anomaly rate per sensor — used for BI dashboards and alerting thresholds."
+    description: Detection quality per sensor per hour, including precision and recall.
     columns:
-      - name: anomaly_rate
+      - name: sensor_id
         tests: [not_null]
+      - name: event_hour
+        tests: [not_null]
+      - name: total_events
+        tests: [not_null]
+        
