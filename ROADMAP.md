@@ -1,83 +1,55 @@
-# Phase 2 Roadmap — Production Hardening on Azure
+# Roadmap
 
-Phase 1 (this repo, as built) proves the pipeline logic end-to-end locally.
-Phase 2 takes the same pipeline and makes it match what mid-size German
-employers are actually running in production right now (confirmed against
-live postings: Azure Databricks-based platforms, Kubernetes deployment,
-Infrastructure-as-Code, and pipeline observability). Do this in order —
-each step is independently demoable and resume-worthy on its own, so if you
-run out of time partway through, you still have something to show.
+An honest account of what runs today, what is written but not currently deployed, and what would come next.
 
-Suggested pace at 10–15 hrs/week: ~1 week per numbered step below.
+---
 
-## 1. Move storage to Azure
+## Phase 1 — Complete and running locally
 
-- Provision an **Azure Database for PostgreSQL – Flexible Server** and point
-  `PG_DSN` at it instead of the local container.
-- Add an **Azure Blob Storage / ADLS Gen2** container as a raw "bronze" data
-  lake: have the consumer (or a small scheduled script) periodically dump
-  batches of `raw_events` to Parquet files in the lake, in addition to
-  Postgres. This is the same medallion pattern (bronze → silver → gold) used
-  at companies like Popken Fashion Group's Azure Databricks platform.
-- **Resume line:** "Migrated the storage layer to Azure (ADLS Gen2 + Azure
-  Database for PostgreSQL), implementing a bronze/silver/gold data lake
-  pattern."
+The whole pipeline runs from a single `docker compose up`.
 
-## 2. Azure Databricks batch job (optional but high-value)
+- **Ingestion.** Simulated IoT fleet publishing telemetry to a Kafka-API broker (Redpanda), with synthetic faults injected at a configurable rate.
+- **Stream processing.** Python consumer maintaining a 30-event rolling feature window per sensor, scoring each event with an IsolationForest and writing both raw and scored events to PostgreSQL.
+- **Analytics modelling.** dbt project with two staging views and two marts tables, deriving per-sensor, per-hour precision and recall from a join between predictions and ground truth. 29 tests passing.
+- **Orchestration.** Airflow DAG running hourly, checking data freshness and nulls before retraining the model on the most recent 5,000 events, and failing the run if the checks do not pass.
+- **Serving.** FastAPI exposing `/health`, `/score` and `/metrics`.
+- **Monitoring.** Prometheus scraping the API every 15 seconds, Grafana rendering request rate, anomaly rate, latency and flagged share. Datasource provisioned from code, dashboard definition version-controlled.
+- **Quality gates.** pytest unit tests, ruff linting and a Docker image build running on every push via GitHub Actions.
 
-- Use Databricks Community Edition (free) or an Azure Databricks trial
-  workspace.
-- Write a PySpark notebook that reads the Parquet files from ADLS Gen2,
-  re-runs the same feature engineering logic at scale, and writes a Delta
-  table — this demonstrates the exact stack (Databricks + Spark + Delta
-  Lake) named explicitly in current German Data Engineer postings.
-- **Resume line:** "Built a PySpark batch feature-engineering job on
-  Databricks, writing to Delta Lake tables."
+---
 
-## 3. Containerize for Kubernetes
+## Phase 2 — Written, previously deployed, not currently running
 
-- You already have Dockerfiles for `api` and `airflow`. Push both images to
-  **Azure Container Registry (ACR)**.
-- Write Kubernetes manifests (`Deployment`, `Service`, and a
-  `HorizontalPodAutoscaler` for the API) and deploy to **Azure Kubernetes
-  Service (AKS)**. A single-node AKS cluster is enough to demo this.
-- **Resume line:** "Containerized and deployed the scoring API to Azure
-  Kubernetes Service (AKS) with autoscaling."
+**Terraform for Azure** lives in `infra/`. It provisions a resource group, an Azure Container Registry and a PostgreSQL Flexible Server. This was applied against a live Azure subscription during development and subsequently torn down with `terraform destroy`, so no cloud resources exist today.
 
-## 4. Infrastructure as Code with Terraform
+Anyone re-applying it should first change `sku_name` on the PostgreSQL server from `GP_Standard_D2s_v3` to a Burstable tier such as `B_Standard_B1ms`. The General Purpose tier is considerably more expensive and offers nothing useful for a demonstration workload.
 
-- Write Terraform to provision: Resource Group, ACR, AKS cluster, Azure
-  Database for PostgreSQL, and the Storage Account/ADLS Gen2 container.
-- Goal: `terraform apply` recreates the entire cloud environment from
-  scratch. This is one of the single highest-leverage additions to your CV —
-  it directly answers "Infrastructure as Code" line items that show up
-  across nearly every mid-to-senior Data Engineer posting.
-- **Resume line:** "Provisioned all cloud infrastructure (AKS, ACR, managed
-  Postgres, ADLS Gen2) as code using Terraform."
+**Kubernetes manifests** live in `k8s/`, covering a deployment for the API and a monitoring configuration. These were authored against the intended cloud topology but have never been applied, because no cluster was provisioned. They should be treated as a design artefact rather than as tested code.
 
-## 5. Monitoring with Prometheus + Grafana
+Completing this phase means provisioning AKS, pushing the API image to the container registry, applying the manifests and restoring the deployment job in CI. That job previously existed in the workflow and was removed, since a pipeline step that can only ever fail is worse than no step at all.
 
-- Add `prometheus` and `grafana` services to a `docker-compose.override.yml`
-  (or a K8s equivalent if already on AKS).
-- Point Prometheus at the API's existing `/metrics` endpoint.
-- Build a Grafana dashboard: request rate, anomaly rate, scoring latency —
-  directly extending the "monitoring and alerting" work from the original
-  research into a real observability stack.
-- **Resume line:** "Instrumented the service with Prometheus metrics and
-  built Grafana dashboards for real-time pipeline observability."
+---
 
-## 6. Extend CI/CD
+## Phase 3 — Model improvements
 
-- Add a `deploy` job to `.github/workflows/ci.yml`: on merge to `main`, build
-  and push images to ACR, then `kubectl apply` (or `helm upgrade`) against
-  AKS.
-- Add `terraform plan` as a required check on pull requests that touch the
-  `infra/` directory.
+Ordered by expected benefit relative to effort.
 
-## What to skip if time runs out
+**Feature scaling.** Fit a `StandardScaler` alongside the IsolationForest and persist both together. The eight features currently span very different ranges, so the larger ones dominate the splits. This also repairs the startup bootstrap, which currently fits on standard normal noise that bears no resemblance to real feature values.
 
-If 10–15 hrs/week doesn't stretch to all six steps, prioritize in this
-order: **1 → 4 → 3 → 5 → 2 → 6**. Terraform (step 4) is disproportionately
-valuable per hour invested — it's a small, self-contained addition that
-unlocks a strong, distinct CV line ("Infrastructure as Code") independent of
-whether steps 2, 3, 5, 6 are finished.
+**Seed the API feature window from PostgreSQL.** On startup, load the most recent readings per sensor so the rolling statistics are warm immediately. This removes the cold-start behaviour described in the README.
+
+**Replace fixed contamination with a tuned threshold.** `anomaly_score` is already persisted for every event, so a threshold sweep against the stored ground truth would give a precision and recall curve and allow the operating point to be chosen deliberately rather than inherited from a default.
+
+**Per-sensor thresholds.** Detection quality currently varies noticeably between sensors. Calibrating per sensor rather than globally would narrow that spread.
+
+**Evaluate on a public real-world dataset.** Performance on injected synthetic faults sets an optimistic upper bound. A benchmark such as NAB or SKAB would give a more honest picture.
+
+---
+
+## Phase 4 — Operational maturity
+
+- Alerting rules in Prometheus, firing when the flagged share drifts away from the expected rate for a sustained period.
+- Model versioning and metric tracking across retraining runs, so performance regressions are visible rather than silent.
+- Automatic rollback when a retrained model scores worse than the one it replaces.
+- Report model-load status through `/health` so orchestration can detect a service that is running but not functional.
+- Backfill support in the dbt models, so historical windows can be recomputed after a logic change.
