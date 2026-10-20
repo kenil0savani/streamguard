@@ -12,13 +12,13 @@ for _ in range(40):
         URL,
         json={
             "sensor_id": SENSOR,
-            "temperature": random.gauss(45.0, 1.5),
-            "vibration": random.gauss(0.8, 0.15),
+            "temperature": random.gauss(68.0, 0.5),
+            "vibration": random.gauss(1.0, 0.05),
         },
     )
 
 normal = requests.post(
-    URL, json={"sensor_id": SENSOR, "temperature": 45.2, "vibration": 0.82}
+    URL, json={"sensor_id": SENSOR, "temperature": 68.2, "vibration": 1.02}
 ).json()
 
 spike = requests.post(
